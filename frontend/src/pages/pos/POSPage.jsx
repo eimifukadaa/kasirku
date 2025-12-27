@@ -48,6 +48,8 @@ export default function POSPage() {
     const [lastTransaction, setLastTransaction] = useState(null)
     const [showReceiptModal, setShowReceiptModal] = useState(false)
     const [receiptPhone, setReceiptPhone] = useState('')
+    const [showCustomerModal, setShowCustomerModal] = useState(false)
+    const [customerSearch, setCustomerSearch] = useState('')
     const scannerRef = useRef(null)
     const isProcessingScan = useRef(false)
 
@@ -65,6 +67,21 @@ export default function POSPage() {
     })
 
     const products = productsData || []
+
+    // Fetch customers for selection
+    const { data: customersData } = useQuery({
+        queryKey: ['customers-select', currentStore?.id, customerSearch],
+        queryFn: async () => {
+            const response = await customersAPI.list(currentStore.id, {
+                search: customerSearch,
+                per_page: 5,
+            })
+            return response.data.data?.data || []
+        },
+        enabled: !!currentStore?.id && showCustomerModal,
+    })
+
+    const customers = customersData || []
 
     // Create transaction mutation
     const createTransactionMutation = useMutation({
@@ -256,6 +273,27 @@ export default function POSPage() {
                 >
                     <Camera className="w-5 h-5" />
                     <span className="hidden md:inline">Scan Barcode</span>
+                </button>
+                <button
+                    onClick={() => setShowCustomerModal(true)}
+                    className={`btn px-4 flex items-center gap-2 ${customer
+                        ? 'bg-green-100 text-green-700 border-green-200'
+                        : 'bg-white text-slate-600 border-slate-200'
+                        }`}
+                >
+                    <User className="w-5 h-5" />
+                    <span className="hidden md:inline text-xs font-bold uppercase tracking-wider">
+                        {customer ? customer.name : 'Pilih Pelanggan'}
+                    </span>
+                    {customer && (
+                        <X
+                            className="w-4 h-4 hover:text-red-500"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setCustomer(null);
+                            }}
+                        />
+                    )}
                 </button>
             </div>
 
@@ -601,6 +639,76 @@ export default function POSPage() {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Customer Selection Modal */}
+            {showCustomerModal && (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-end">
+                    <div className="bg-white w-full rounded-t-3xl p-6 animate-slide-up max-h-[80vh] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold">Pilih Pelanggan</h2>
+                            <button onClick={() => setShowCustomerModal(false)}>
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="relative mb-4">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <input
+                                type="text"
+                                className="input pl-12"
+                                placeholder="Cari nama atau no. WA..."
+                                value={customerSearch}
+                                onChange={(e) => setCustomerSearch(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="flex-1 overflow-auto space-y-2 mb-6">
+                            {customers.length === 0 ? (
+                                <p className="text-center py-10 text-slate-500">Pelanggan tidak ditemukan</p>
+                            ) : (
+                                customers.map((c) => (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => {
+                                            setCustomer(c);
+                                            setShowCustomerModal(false);
+                                            toast.success(`Pelanggan: ${c.name}`);
+                                        }}
+                                        className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-primary-50 rounded-2xl border border-slate-100 hover:border-primary-200 transition-all text-left group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-lg border group-hover:border-primary-200">
+                                                👤
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-900">{c.name}</p>
+                                                <p className="text-xs text-slate-500">{c.phone}</p>
+                                            </div>
+                                        </div>
+                                        {c.total_spent >= 1000000 && (
+                                            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold border border-yellow-200">
+                                                ⭐ VIP
+                                            </span>
+                                        )}
+                                    </button>
+                                ))
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setShowCustomerModal(false);
+                                navigate('/customers');
+                            }}
+                            className="btn-secondary w-full"
+                        >
+                            <Plus className="w-5 h-5 mr-2" />
+                            Tambah Pelanggan Baru
+                        </button>
                     </div>
                 </div>
             )}

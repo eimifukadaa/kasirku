@@ -143,7 +143,14 @@ export default function CustomersPage() {
                                     <User className="w-6 h-6 text-primary-600" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-medium text-slate-900">{customer.name}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-medium text-slate-900">{customer.name}</h3>
+                                        {customer.total_spent >= 1000000 && (
+                                            <span className="flex items-center gap-1 bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full border border-yellow-200 font-bold animate-pulse">
+                                                ⭐ VIP
+                                            </span>
+                                        )}
+                                    </div>
                                     {customer.phone && (
                                         <p className="text-sm text-slate-500 flex items-center gap-1">
                                             <Phone className="w-3 h-3" />
