@@ -67,16 +67,7 @@ export default function MainLayout() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl relative">
-                            <Bell className="w-5 h-5" />
-                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                        </button>
-                        <button
-                            onClick={() => navigate('/select-store')}
-                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl"
-                        >
-                            <Store className="w-5 h-5" />
-                        </button>
+                        {/* Icons removed as requested */}
                     </div>
                 </div>
             </header>
