@@ -119,28 +119,19 @@ export default function POSPage() {
 
                             // 2. Add product to cart
                             addItem(product)
-                            toast.success(`Berhasil: ${product.name}`)
+                            toast.success(`Ditambahkan: ${product.name}`, { duration: 1500 })
 
-                            // 3. Smooth Flow: Stop camera & Go straight to payment
-                            setTimeout(async () => {
-                                await stopScanner();
-                                setShowScanner(false);
-
-                                // Set payment amount and open modal
-                                setPaymentAmount(getTotal() + product.price);
-                                setShowPayment(true);
-
-                                // Release lock after a delay
-                                setTimeout(() => {
-                                    isProcessingScan.current = false;
-                                }, 1000);
-                            }, 300);
+                            // 3. Continuous Scanning: Release the lock after a delay
+                            // This allows scanning the next item without closing the camera
+                            setTimeout(() => {
+                                isProcessingScan.current = false;
+                            }, 1200);
 
                         } catch (error) {
                             console.error("Scan error:", error);
                             toast.error('Produk tidak ditemukan');
 
-                            // Allow another scan after 2 seconds
+                            // Release lock so user can try again
                             setTimeout(() => {
                                 isProcessingScan.current = false;
                             }, 2000);
@@ -181,6 +172,16 @@ export default function POSPage() {
             stopScanner();
         };
     }, [showScanner, currentStore?.id, addItem])
+
+    const handleScannerFinish = () => {
+        if (items.length === 0) {
+            toast.error('Keranjang masih kosong');
+            return;
+        }
+        setShowScanner(false);
+        setPaymentAmount(getTotal());
+        setShowPayment(true);
+    };
 
     const handleCheckout = () => {
         if (items.length === 0) {
@@ -395,6 +396,29 @@ export default function POSPage() {
 
                         <div className="mt-8 px-6 py-3 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10">
                             <p className="text-white text-sm font-medium">Mencari barcode...</p>
+                        </div>
+
+                        {/* Scanner Footer Actions */}
+                        <div className="absolute bottom-10 left-0 right-0 px-6 flex flex-col items-center gap-4 pointer-events-auto">
+                            {items.length > 0 && (
+                                <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 text-center animate-scale-in">
+                                    <p className="text-white/60 text-xs">Total Sementara</p>
+                                    <p className="text-white font-bold text-xl">
+                                        Rp {formatMoney(getTotal())}
+                                    </p>
+                                    <p className="text-primary-400 text-[10px] font-medium">
+                                        {items.length} Barang di Keranjang
+                                    </p>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleScannerFinish}
+                                className="w-full max-w-xs btn-primary btn-lg shadow-2xl shadow-primary-500/50 flex items-center justify-center gap-3 active:scale-95 transition-all"
+                            >
+                                <Check className="w-6 h-6" />
+                                <span>Selesai & Bayar</span>
+                            </button>
                         </div>
                     </div>
                 </div>
