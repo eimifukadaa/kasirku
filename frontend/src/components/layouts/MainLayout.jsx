@@ -14,12 +14,13 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
-const navItems = [
-    { path: '/dashboard', icon: Home, label: 'Home' },
-    { path: '/pos', icon: ShoppingCart, label: 'Kasir' },
-    { path: '/products', icon: Package, label: 'Produk' },
-    { path: '/customers', icon: Users, label: 'Customer' },
-    { path: '/settings', icon: Settings, label: 'Setting' },
+// List of all possible navigation items
+const allNavItems = [
+    { path: '/dashboard', icon: Home, label: 'Home', roles: ['owner', 'admin'] },
+    { path: '/pos', icon: ShoppingCart, label: 'Kasir', roles: ['owner', 'admin', 'cashier'] },
+    { path: '/products', icon: Package, label: 'Produk', roles: ['owner', 'admin'] },
+    { path: '/customers', icon: Users, label: 'Customer', roles: ['owner', 'admin', 'cashier'] },
+    { path: '/settings', icon: Settings, label: 'Setting', roles: ['owner', 'admin'] },
 ]
 
 export default function MainLayout() {
@@ -38,6 +39,11 @@ export default function MainLayout() {
         navigate('/login')
     }
 
+    // Filter items based on user role
+    const navItems = allNavItems.filter(item =>
+        !item.roles || item.roles.includes(user?.role)
+    )
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
             {/* Header */}
@@ -55,7 +61,7 @@ export default function MainLayout() {
                                 {currentStore.name}
                             </h1>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                                {user?.full_name}
+                                {user?.full_name} ({user?.role})
                             </p>
                         </div>
                     </div>
@@ -96,8 +102,41 @@ export default function MainLayout() {
                         </div>
 
                         <nav className="p-4">
+                            {/* Role-based sidebar items */}
+                            {(user?.role === 'owner' || user?.role === 'admin') && (
+                                <>
+                                    <NavLink
+                                        to="/reports"
+                                        onClick={() => setShowMenu(false)}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-3 px-4 py-3 rounded-xl mb-2 ${isActive
+                                                ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20'
+                                                : 'hover:bg-slate-100 dark:hover:bg-slate-700'
+                                            }`
+                                        }
+                                    >
+                                        <BarChart3 className="w-5 h-5" />
+                                        <span>Laporan</span>
+                                    </NavLink>
+                                    <NavLink
+                                        to="/stock"
+                                        onClick={() => setShowMenu(false)}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-3 px-4 py-3 rounded-xl mb-2 ${isActive
+                                                ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20'
+                                                : 'hover:bg-slate-100 dark:hover:bg-slate-700'
+                                            }`
+                                        }
+                                    >
+                                        <Package className="w-5 h-5" />
+                                        <span>Stok Barang</span>
+                                    </NavLink>
+                                </>
+                            )}
+
+                            {/* POS is visible to all, but let's put it here just in case sidebar is used for more */}
                             <NavLink
-                                to="/reports"
+                                to="/pos"
                                 onClick={() => setShowMenu(false)}
                                 className={({ isActive }) =>
                                     `flex items-center gap-3 px-4 py-3 rounded-xl mb-2 ${isActive
@@ -106,21 +145,8 @@ export default function MainLayout() {
                                     }`
                                 }
                             >
-                                <BarChart3 className="w-5 h-5" />
-                                <span>Laporan</span>
-                            </NavLink>
-                            <NavLink
-                                to="/stock"
-                                onClick={() => setShowMenu(false)}
-                                className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl mb-2 ${isActive
-                                        ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20'
-                                        : 'hover:bg-slate-100 dark:hover:bg-slate-700'
-                                    }`
-                                }
-                            >
-                                <Package className="w-5 h-5" />
-                                <span>Stok Barang</span>
+                                <ShoppingCart className="w-5 h-5" />
+                                <span>Kasir</span>
                             </NavLink>
                         </nav>
 

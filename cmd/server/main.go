@@ -91,47 +91,49 @@ func main() {
 	// Store-scoped routes
 	storeRoutes := protected.Group("/stores/:storeId", middleware.StoreAccessMiddleware())
 
-	// Category routes
+	// Category routes (Allow cashier to list, but not create)
 	storeRoutes.Get("/categories", handlers.ListCategories)
-	storeRoutes.Post("/categories", handlers.CreateCategory)
+	storeRoutes.Post("/categories", middleware.OwnerOnlyMiddleware(), handlers.CreateCategory)
 
 	// Product routes
 	storeRoutes.Get("/products", handlers.ListProducts)
-	storeRoutes.Post("/products", handlers.CreateProduct)
+	storeRoutes.Post("/products", middleware.OwnerOnlyMiddleware(), handlers.CreateProduct)
 	storeRoutes.Get("/products/:id", handlers.GetProduct)
-	storeRoutes.Put("/products/:id", handlers.UpdateProduct)
-	storeRoutes.Delete("/products/:id", handlers.DeleteProduct)
+	storeRoutes.Put("/products/:id", middleware.OwnerOnlyMiddleware(), handlers.UpdateProduct)
+	storeRoutes.Delete("/products/:id", middleware.OwnerOnlyMiddleware(), handlers.DeleteProduct)
 	storeRoutes.Get("/products/barcode/:code", handlers.GetProductByBarcode)
 	storeRoutes.Post("/products/generate-barcode", handlers.GenerateBarcode)
 
-	// Stock routes
-	storeRoutes.Get("/stock", handlers.ListStockMovements)
-	storeRoutes.Post("/stock/in", handlers.StockIn)
-	storeRoutes.Post("/stock/out", handlers.StockOut)
-	storeRoutes.Get("/stock/low", handlers.GetLowStock)
+	// Stock routes (Owner Only)
+	storeRoutes.Get("/stock", middleware.OwnerOnlyMiddleware(), handlers.ListStockMovements)
+	storeRoutes.Post("/stock/in", middleware.OwnerOnlyMiddleware(), handlers.StockIn)
+	storeRoutes.Post("/stock/out", middleware.OwnerOnlyMiddleware(), handlers.StockOut)
+	storeRoutes.Get("/stock/low", middleware.OwnerOnlyMiddleware(), handlers.GetLowStock)
 
-	// Transaction routes
+	// Transaction routes (Allow cashier to list and create)
 	storeRoutes.Get("/transactions", handlers.ListTransactions)
 	storeRoutes.Post("/transactions", handlers.CreateTransaction)
 	storeRoutes.Get("/transactions/:id", handlers.GetTransaction)
 
-	// Customer routes
+	// Customer routes (Allow cashier)
 	storeRoutes.Get("/customers", handlers.ListCustomers)
 	storeRoutes.Post("/customers", handlers.CreateCustomer)
 	storeRoutes.Get("/customers/:id", handlers.GetCustomer)
 	storeRoutes.Put("/customers/:id", handlers.UpdateCustomer)
-	storeRoutes.Delete("/customers/:id", handlers.DeleteCustomer)
+	storeRoutes.Delete("/customers/:id", middleware.OwnerOnlyMiddleware(), handlers.DeleteCustomer)
 	storeRoutes.Post("/customers/find-or-create", handlers.FindOrCreateCustomerByPhone)
 
-	// Report routes
-	storeRoutes.Get("/reports/dashboard", handlers.GetDashboardStats)
-	storeRoutes.Get("/reports/daily", handlers.GetDailyReport)
-	storeRoutes.Get("/reports/weekly", handlers.GetWeeklyReport)
-	storeRoutes.Get("/reports/monthly", handlers.GetMonthlyReport)
-	storeRoutes.Get("/reports/products", handlers.GetProductReport)
-	storeRoutes.Get("/reports/profit-loss", handlers.GetProfitLossReport)
-	storeRoutes.Get("/reports/export", handlers.ExportReport)
-	storeRoutes.Post("/reset-database", handlers.ResetStoreData)
+	// Report routes (Owner Only)
+	reportRoutes := storeRoutes.Group("/reports", middleware.OwnerOnlyMiddleware())
+	reportRoutes.Get("/dashboard", handlers.GetDashboardStats)
+	reportRoutes.Get("/daily", handlers.GetDailyReport)
+	reportRoutes.Get("/weekly", handlers.GetWeeklyReport)
+	reportRoutes.Get("/monthly", handlers.GetMonthlyReport)
+	reportRoutes.Get("/products", handlers.GetProductReport)
+	reportRoutes.Get("/profit-loss", handlers.GetProfitLossReport)
+	reportRoutes.Get("/export", handlers.ExportReport)
+
+	storeRoutes.Post("/reset-database", middleware.OwnerOnlyMiddleware(), handlers.ResetStoreData)
 
 	// WhatsApp routes
 	storeRoutes.Post("/whatsapp/send-receipt", handlers.SendReceipt)

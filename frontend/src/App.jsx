@@ -31,6 +31,17 @@ function ProtectedRoute({ children }) {
     return children
 }
 
+// Role Protected Route Component
+function RoleProtectedRoute({ children, roles }) {
+    const user = useAuthStore((state) => state.user)
+
+    if (!roles.includes(user?.role)) {
+        return <Navigate to="/pos" replace />
+    }
+
+    return children
+}
+
 // Public Route Component (redirect if authenticated)
 function PublicRoute({ children }) {
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -83,20 +94,72 @@ export default function App() {
                     </ProtectedRoute>
                 }
             >
-                <Route path="/dashboard" element={<DashboardPage />} />
+                {/* Restricted to Owner/Admin */}
+                <Route
+                    path="/dashboard"
+                    element={
+                        <RoleProtectedRoute roles={['owner', 'admin']}>
+                            <DashboardPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/products"
+                    element={
+                        <RoleProtectedRoute roles={['owner', 'admin']}>
+                            <ProductsPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/products/new"
+                    element={
+                        <RoleProtectedRoute roles={['owner', 'admin']}>
+                            <ProductFormPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/products/:id"
+                    element={
+                        <RoleProtectedRoute roles={['owner', 'admin']}>
+                            <ProductFormPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/stock"
+                    element={
+                        <RoleProtectedRoute roles={['owner', 'admin']}>
+                            <StockPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/reports"
+                    element={
+                        <RoleProtectedRoute roles={['owner', 'admin']}>
+                            <ReportsPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/settings"
+                    element={
+                        <RoleProtectedRoute roles={['owner', 'admin']}>
+                            <SettingsPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+
+                {/* Open to all roles (including Cashier) */}
                 <Route path="/pos" element={<POSPage />} />
-                <Route path="/products" element={<ProductsPage />} />
-                <Route path="/products/new" element={<ProductFormPage />} />
-                <Route path="/products/:id" element={<ProductFormPage />} />
-                <Route path="/stock" element={<StockPage />} />
                 <Route path="/customers" element={<CustomersPage />} />
-                <Route path="/reports" element={<ReportsPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
-            {/* Default redirect */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Default redirect based on role */}
+            <Route path="/" element={<Navigate to="/pos" replace />} />
+            <Route path="*" element={<Navigate to="/pos" replace />} />
         </Routes>
     )
 }
