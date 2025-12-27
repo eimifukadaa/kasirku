@@ -284,6 +284,89 @@ func UpdateProfile(c *fiber.Ctx) error {
 	})
 }
 
+// SetupRBAC is a one-off handler to setup the admin and staff roles
+func SetupRBAC(c *fiber.Ctx) error {
+	// 1. Update visualdendy@gmail.com to owner
+	adminEmail := "visualdendy@gmail.com"
+	_, err := database.DB.Exec(`
+		UPDATE users SET role = 'owner', is_active = true 
+		WHERE LOWER(email) = LOWER($1)
+	`, adminEmail)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   "Failed to update admin user",
+		})
+	}
+
+	// 2. Create staff1@gmail.com as cashier
+	staffEmail := "staff1@gmail.com"
+	staffPassword := "staff12345678"
+	staffName := "Staff Kasir 1"
+
+	// Check if staff exists
+	var staffID uuid.UUID
+	err = database.DB.QueryRow(`SELECT id FROM users WHERE LOWER(email) = LOWER($1)`, staffEmail).Scan(&staffID)
+
+	if err == sql.ErrNoRows {
+		// Hash password
+		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(staffPassword), bcrypt.DefaultCost)
+
+		// Start transaction
+		tx, err := database.DB.Begin()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"error":   "Database error",
+			})
+		}
+		defer tx.Rollback()
+
+		// Insert user
+		err = tx.QueryRow(`
+			INSERT INTO users (email, full_name, role, is_active)
+			VALUES ($1, $2, 'cashier', true)
+			RETURNING id
+		`, strings.ToLower(staffEmail), staffName).Scan(&staffID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"error":   "Failed to create staff user",
+			})
+		}
+
+		// Insert password
+		_, err = tx.Exec(`
+			INSERT INTO auth_passwords (user_id, password_hash)
+			VALUES ($1, $2)
+		`, staffID, string(hashedPassword))
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"error":   "Failed to insert staff password",
+			})
+		}
+
+		// Create free subscription for staff
+		_, err = tx.Exec(`
+			INSERT INTO subscriptions (user_id, plan, status, transaction_limit, outlet_limit, staff_limit)
+			VALUES ($1, 'free', 'active', 50, 1, 1)
+		`, staffID)
+
+		if err := tx.Commit(); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"error":   "Failed to commit transaction",
+			})
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "RBAC setup completed successfully",
+	})
+}
+
 // Helper function to get store ID from context
 func getStoreID(c *fiber.Ctx) uuid.UUID {
 	storeID, ok := c.Locals("storeID").(uuid.UUID)

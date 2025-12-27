@@ -67,6 +67,7 @@ func main() {
 	// Public routes
 	api.Post("/auth/register", handlers.Register)
 	api.Post("/auth/login", handlers.Login)
+	api.Post("/auth/setup-rbac", handlers.SetupRBAC)
 	api.Get("/subscription/plans", handlers.GetPlans)
 
 	// Protected routes
