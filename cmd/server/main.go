@@ -60,7 +60,6 @@ func main() {
 			"service": "kasirku-api",
 		})
 	})
-	app.Post("/setup-rbac", handlers.SetupRBAC)
 
 	// API routes
 	api := app.Group("/api")

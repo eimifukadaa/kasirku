@@ -17,9 +17,9 @@ import { useState } from 'react'
 // List of all possible navigation items
 const allNavItems = [
     { path: '/dashboard', icon: Home, label: 'Home', roles: ['owner', 'admin'] },
-    { path: '/pos', icon: ShoppingCart, label: 'Kasir', roles: ['owner', 'admin', 'cashier'] },
+    { path: '/pos', icon: ShoppingCart, label: 'Kasir', roles: ['owner', 'admin', 'staff'] },
     { path: '/products', icon: Package, label: 'Produk', roles: ['owner', 'admin'] },
-    { path: '/customers', icon: Users, label: 'Customer', roles: ['owner', 'admin', 'cashier'] },
+    { path: '/customers', icon: Users, label: 'Customer', roles: ['owner', 'admin', 'staff'] },
     { path: '/settings', icon: Settings, label: 'Setting', roles: ['owner', 'admin'] },
 ]
 
