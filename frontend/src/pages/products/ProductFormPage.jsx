@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useStoreStore } from '../../store'
 import { productsAPI, categoriesAPI } from '../../services/api'
-import { ArrowLeft, Camera, Save } from 'lucide-react'
+import { ArrowLeft, Camera, Save, X, QrCode } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { Html5Qrcode } from 'html5-qrcode'
 
 export default function ProductFormPage() {
     const navigate = useNavigate()
@@ -25,6 +26,9 @@ export default function ProductFormPage() {
         unit: 'pcs',
         description: '',
     })
+
+    const [showScanner, setShowScanner] = useState(false)
+    const scannerRef = useRef(null)
 
     // Fetch product for edit
     const { data: product, isLoading: productLoading } = useQuery({
@@ -101,6 +105,62 @@ export default function ProductFormPage() {
             toast.error('Gagal generate barcode')
         }
     }
+
+    // Handle barcode scan
+    useEffect(() => {
+        let html5QrCode = null;
+
+        const startScanner = async () => {
+            try {
+                html5QrCode = new Html5Qrcode("qr-reader");
+                scannerRef.current = html5QrCode;
+
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: { width: 280, height: 280 },
+                        aspectRatio: 1.0,
+                    },
+                    (decodedText) => {
+                        setFormData(prev => ({ ...prev, barcode: decodedText }));
+                        toast.success('Barcode berhasil di-scan');
+                        stopScanner();
+                        setShowScanner(false);
+                    },
+                    (errorMessage) => {
+                        // ignore noise
+                    }
+                );
+            } catch (err) {
+                console.error("Scanner error:", err);
+                toast.error("Gagal membuka kamera");
+                setShowScanner(false);
+            }
+        };
+
+        const stopScanner = async () => {
+            if (scannerRef.current && scannerRef.current.isScanning) {
+                try {
+                    await scannerRef.current.stop();
+                    scannerRef.current.clear();
+                } catch (err) {
+                    // console.error("Scanner stop error:", err);
+                }
+            }
+            scannerRef.current = null;
+        };
+
+        if (showScanner) {
+            startScanner();
+        } else {
+            stopScanner();
+        }
+
+        return () => {
+            stopScanner();
+        };
+    }, [showScanner])
 
     const handleSubmit = (e) => {
         e.preventDefault()
@@ -180,6 +240,14 @@ export default function ProductFormPage() {
                             value={formData.barcode}
                             onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowScanner(true)}
+                            className="btn px-4 bg-primary-600 text-white hover:bg-primary-700 flex items-center gap-2 rounded-xl"
+                        >
+                            <QrCode className="w-5 h-5" />
+                            Scan
+                        </button>
                         <button
                             type="button"
                             onClick={generateBarcode}
@@ -284,6 +352,45 @@ export default function ProductFormPage() {
                     )}
                 </button>
             </form>
+
+            {/* Scanner Modal */}
+            {showScanner && (
+                <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center">
+                    <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-10 bg-gradient-to-b from-black/80 to-transparent">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+                                <Camera className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-white text-lg">Scan Barcode</h2>
+                                <p className="text-white/60 text-xs">Scan barcode pada produk</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowScanner(false)}
+                            className="w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+
+                    <div id="qr-reader" className="w-full h-full" />
+
+                    {/* Viewfinder Overlay */}
+                    <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                        <div className="relative w-72 h-72">
+                            <div className="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-primary-500 rounded-tl-2xl"></div>
+                            <div className="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-primary-500 rounded-tr-2xl"></div>
+                            <div className="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-primary-500 rounded-bl-2xl"></div>
+                            <div className="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-primary-500 rounded-br-2xl"></div>
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-primary-500/50 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan-line"></div>
+                        </div>
+                        <div className="mt-8 px-6 py-2 bg-black/40 backdrop-blur-md rounded-xl border border-white/10">
+                            <p className="text-white text-sm">Posisikan barcode di tengah kotak</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
