@@ -17,7 +17,7 @@ import {
     Send,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Html5QrcodeScanner } from 'html5-qrcode'
+import { Html5Qrcode } from 'html5-qrcode'
 
 export default function POSPage() {
     const { currentStore } = useStoreStore()
@@ -93,40 +93,68 @@ export default function POSPage() {
 
     // Handle barcode scan
     useEffect(() => {
-        if (showScanner && !scannerRef.current) {
-            const scanner = new Html5QrcodeScanner('qr-reader', {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-            })
+        let html5QrCode = null;
 
-            scanner.render(
-                async (decodedText) => {
-                    scanner.clear()
-                    setShowScanner(false)
+        const startScanner = async () => {
+            try {
+                html5QrCode = new Html5Qrcode("qr-reader");
+                scannerRef.current = html5QrCode;
 
-                    try {
-                        const response = await productsAPI.getByBarcode(currentStore.id, decodedText)
-                        addItem(response.data.data)
-                        toast.success('Produk ditambahkan')
-                    } catch (error) {
-                        toast.error('Produk tidak ditemukan')
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: { width: 280, height: 280 },
+                        aspectRatio: 1.0,
+                    },
+                    async (decodedText) => {
+                        // Success!
+                        toast.success('Barcode terdeteksi')
+
+                        try {
+                            const response = await productsAPI.getByBarcode(currentStore.id, decodedText)
+                            addItem(response.data.data)
+                            toast.success(`Produk ${response.data.data.name} ditambahkan`)
+
+                            // Keep scanning or close? Let's close for now to stay simple
+                            stopScanner();
+                            setShowScanner(false);
+                        } catch (error) {
+                            toast.error('Produk tidak ditemukan')
+                        }
+                    },
+                    (errorMessage) => {
+                        // ignore
                     }
-                },
-                (error) => {
-                    // Ignore scan errors
-                }
-            )
+                );
+            } catch (err) {
+                console.error("Failed to start scanner:", err);
+                toast.error("Gagal membuka kamera");
+                setShowScanner(false);
+            }
+        };
 
-            scannerRef.current = scanner
+        const stopScanner = async () => {
+            if (scannerRef.current && scannerRef.current.isScanning) {
+                try {
+                    await scannerRef.current.stop();
+                    scannerRef.current.clear();
+                } catch (err) {
+                    console.error("Failed to stop scanner:", err);
+                }
+            }
+            scannerRef.current = null;
+        };
+
+        if (showScanner) {
+            startScanner();
+        } else {
+            stopScanner();
         }
 
         return () => {
-            if (scannerRef.current) {
-                scannerRef.current.clear()
-                scannerRef.current = null
-            }
-        }
+            stopScanner();
+        };
     }, [showScanner, currentStore?.id, addItem])
 
     const handleCheckout = () => {
@@ -198,9 +226,10 @@ export default function POSPage() {
                 </div>
                 <button
                     onClick={() => setShowScanner(true)}
-                    className="btn-secondary"
+                    className="btn px-4 bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-200 flex items-center gap-2"
                 >
                     <Camera className="w-5 h-5" />
+                    <span className="hidden md:inline">Scan Barcode</span>
                 </button>
             </div>
 
@@ -305,14 +334,44 @@ export default function POSPage() {
 
             {/* Scanner Modal */}
             {showScanner && (
-                <div className="fixed inset-0 bg-black z-50 flex flex-col">
-                    <div className="flex items-center justify-between p-4 text-white">
-                        <h2 className="font-bold">Scan Barcode</h2>
-                        <button onClick={() => setShowScanner(false)}>
+                <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center">
+                    <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-10 bg-gradient-to-b from-black/80 to-transparent">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+                                <Camera className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-white text-lg">Scan Barcode</h2>
+                                <p className="text-white/60 text-xs">Arahkan kamera ke barcode produk</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowScanner(false)}
+                            className="w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all"
+                        >
                             <X className="w-6 h-6" />
                         </button>
                     </div>
-                    <div id="qr-reader" className="flex-1" />
+
+                    <div id="qr-reader" className="w-full h-full" />
+
+                    {/* Floating Viewfinder Overlay */}
+                    <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                        <div className="relative w-72 h-72">
+                            {/* Corner Borders */}
+                            <div className="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-primary-500 rounded-tl-2xl"></div>
+                            <div className="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-primary-500 rounded-tr-2xl"></div>
+                            <div className="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-primary-500 rounded-bl-2xl"></div>
+                            <div className="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-primary-500 rounded-br-2xl"></div>
+
+                            {/* Scanning Line Animation */}
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-primary-500/50 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan-line"></div>
+                        </div>
+
+                        <div className="mt-8 px-6 py-3 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10">
+                            <p className="text-white text-sm font-medium">Mencari barcode...</p>
+                        </div>
+                    </div>
                 </div>
             )}
 
