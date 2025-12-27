@@ -1,14 +1,15 @@
 package handlers
 
 import (
+	"bytes"
+	"database/sql"
+	"encoding/csv"
 	"fmt"
+	"log"
 	"time"
 
 	"kasirku/internal/database"
 	"kasirku/internal/models"
-
-	"database/sql"
-	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -413,4 +414,83 @@ func GetDashboardStats(c *fiber.Ctx) error {
 		"success": true,
 		"data":    stats,
 	})
+}
+
+// ExportReport generates a CSV export of transactions
+func ExportReport(c *fiber.Ctx) error {
+	storeID := getStoreID(c)
+	dateFrom := c.Query("date_from", "")
+	dateTo := c.Query("date_to", "")
+	timezone := c.Query("timezone", "Asia/Makassar")
+
+	query := `
+		SELECT t.invoice_number, t.created_at AT TIME ZONE $2, 
+		       COALESCE(c.name, 'Pelanggan Umum'), t.payment_type,
+		       t.subtotal, t.discount_amount, t.tax_amount, t.total,
+		       COALESCE(SUM(ti.cost * ti.quantity), 0) as total_cost,
+		       t.total - COALESCE(SUM(ti.cost * ti.quantity), 0) as profit
+		FROM transactions t
+		LEFT JOIN customers c ON t.customer_id = c.id
+		LEFT JOIN transaction_items ti ON t.id = ti.transaction_id
+		WHERE t.store_id = $1 AND t.status = 'completed'
+	`
+	args := []interface{}{storeID, timezone}
+	argCount := 2
+
+	if dateFrom != "" {
+		argCount++
+		query += fmt.Sprintf(" AND DATE(t.created_at AT TIME ZONE $%d) >= $%d", 2, argCount)
+		args = append(args, dateFrom)
+	}
+
+	if dateTo != "" {
+		argCount++
+		query += fmt.Sprintf(" AND DATE(t.created_at AT TIME ZONE $%d) <= $%d", 2, argCount)
+		args = append(args, dateTo)
+	}
+
+	query += " GROUP BY t.id, c.name ORDER BY t.created_at DESC"
+
+	rows, err := database.DB.Query(query, args...)
+	if err != nil {
+		log.Printf("Error exporting report for store %s: %v", storeID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   "Failed to fetch data for export",
+		})
+	}
+	defer rows.Close()
+
+	// Create CSV
+	b := &bytes.Buffer{}
+	w := csv.NewWriter(b)
+
+	// Header
+	w.Write([]string{"Invoice", "Tanggal", "Pelanggan", "Pembayaran", "Subtotal", "Diskon", "Pajak", "Total", "Modal", "Untung"})
+
+	for rows.Next() {
+		var inv, cust, pay string
+		var created time.Time
+		var sub, disc, tax, tot, cost, profit float64
+		rows.Scan(&inv, &created, &cust, &pay, &sub, &disc, &tax, &tot, &cost, &profit)
+
+		w.Write([]string{
+			inv,
+			created.Format("2006-01-02 15:04"),
+			cust,
+			pay,
+			fmt.Sprintf("%.2f", sub),
+			fmt.Sprintf("%.2f", disc),
+			fmt.Sprintf("%.2f", tax),
+			fmt.Sprintf("%.2f", tot),
+			fmt.Sprintf("%.2f", cost),
+			fmt.Sprintf("%.2f", profit),
+		})
+	}
+	w.Flush()
+
+	c.Set("Content-Type", "text/csv")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=report_%s.csv", time.Now().Format("20060102_150405")))
+
+	return c.Send(b.Bytes())
 }

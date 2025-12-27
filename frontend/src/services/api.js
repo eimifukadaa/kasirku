@@ -100,6 +100,7 @@ export const reportsAPI = {
     getMonthly: (storeId, params) => api.get(`/stores/${storeId}/reports/monthly`, { params }),
     getProducts: (storeId, params) => api.get(`/stores/${storeId}/reports/products`, { params }),
     getProfitLoss: (storeId, params) => api.get(`/stores/${storeId}/reports/profit-loss`, { params }),
+    exportCSV: (storeId, params) => api.get(`/stores/${storeId}/reports/export`, { params, responseType: 'blob' }),
 }
 
 // WhatsApp API

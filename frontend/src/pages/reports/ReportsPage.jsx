@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useStoreStore } from '../../store'
 import { reportsAPI } from '../../services/api'
+import toast from 'react-hot-toast'
 import {
     BarChart,
     Bar,
@@ -146,6 +147,44 @@ export default function ReportsPage() {
         });
     }
 
+    const [isDownloading, setIsDownloading] = useState(false)
+
+    const handleDownload = async () => {
+        if (!currentStore?.id) return
+
+        setIsDownloading(true)
+        const loadToast = toast.loading('Memproses laporan...')
+
+        try {
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+            // For now, export based on the selected date (daily) 
+            // but we could expand this to use the active tab's range
+            const params = {
+                date_from: selectedDate,
+                date_to: selectedDate,
+                timezone: timezone
+            }
+
+            const response = await reportsAPI.exportCSV(currentStore.id, params)
+
+            // Create blob and download link
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `laporan_${currentStore.name.replace(/\s+/g, '_')}_${selectedDate}.csv`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+
+            toast.success('Laporan berhasil diunduh', { id: loadToast })
+        } catch (error) {
+            console.error('Download error:', error)
+            toast.error('Gagal mengunduh laporan', { id: loadToast })
+        } finally {
+            setIsDownloading(false)
+        }
+    }
+
     const chartData = dateRange === 'week' ? weeklyData : monthlyData
 
     // Loading Skeletons
@@ -232,8 +271,13 @@ export default function ReportsPage() {
                     )}
                 </div>
 
-                <button className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:bg-slate-50 transition-colors">
-                    <Download className="w-5 h-5" />
+                <button
+                    onClick={handleDownload}
+                    disabled={isDownloading}
+                    className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    title="Download Laporan (CSV)"
+                >
+                    <Download className={`w-5 h-5 ${isDownloading ? 'animate-bounce' : ''}`} />
                 </button>
             </div>
 

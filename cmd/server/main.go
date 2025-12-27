@@ -130,6 +130,7 @@ func main() {
 	storeRoutes.Get("/reports/monthly", handlers.GetMonthlyReport)
 	storeRoutes.Get("/reports/products", handlers.GetProductReport)
 	storeRoutes.Get("/reports/profit-loss", handlers.GetProfitLossReport)
+	storeRoutes.Get("/reports/export", handlers.ExportReport)
 	storeRoutes.Post("/reset-database", handlers.ResetStoreData)
 
 	// WhatsApp routes
