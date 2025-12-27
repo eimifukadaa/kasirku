@@ -1,0 +1,58 @@
+# Binaries
+main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files (NEVER commit these!)
+.env
+.env.local
+.env.*.local
+
+# Keep example for reference
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Build artifacts
+dist/
+
+# Node modules (frontend)
+frontend/node_modules/
+frontend/.env.local
+
+# Docker volumes
+postgres_data/
+
+# Debug files
+__debug_bin
+*.prof
+debug.test
+
+# Railway local dev
+.railway/
