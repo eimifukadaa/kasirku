@@ -60,6 +60,7 @@ func main() {
 			"service": "kasirku-api",
 		})
 	})
+	app.Post("/setup-rbac", handlers.SetupRBAC)
 
 	// API routes
 	api := app.Group("/api")
@@ -67,7 +68,6 @@ func main() {
 	// Public routes
 	api.Post("/auth/register", handlers.Register)
 	api.Post("/auth/login", handlers.Login)
-	api.Post("/auth/setup-rbac", handlers.SetupRBAC)
 	api.Get("/subscription/plans", handlers.GetPlans)
 
 	// Protected routes
