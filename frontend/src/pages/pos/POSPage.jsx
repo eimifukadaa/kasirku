@@ -49,6 +49,7 @@ export default function POSPage() {
     const [showReceiptModal, setShowReceiptModal] = useState(false)
     const [receiptPhone, setReceiptPhone] = useState('')
     const scannerRef = useRef(null)
+    const isProcessingScan = useRef(false)
 
     // Fetch products
     const { data: productsData } = useQuery({
@@ -108,29 +109,52 @@ export default function POSPage() {
                         aspectRatio: 1.0,
                     },
                     async (decodedText) => {
-                        // Success!
-                        toast.success('Barcode terdeteksi')
+                        // 1. Anti-Spam Lock: Prevent notification spam
+                        if (isProcessingScan.current) return;
+                        isProcessingScan.current = true;
 
                         try {
                             const response = await productsAPI.getByBarcode(currentStore.id, decodedText)
-                            addItem(response.data.data)
-                            toast.success(`Produk ${response.data.data.name} ditambahkan`)
+                            const product = response.data.data;
 
-                            // Keep scanning or close? Let's close for now to stay simple
-                            stopScanner();
-                            setShowScanner(false);
+                            // 2. Add product to cart
+                            addItem(product)
+                            toast.success(`Berhasil: ${product.name}`)
+
+                            // 3. Smooth Flow: Stop camera & Go straight to payment
+                            setTimeout(async () => {
+                                await stopScanner();
+                                setShowScanner(false);
+
+                                // Set payment amount and open modal
+                                setPaymentAmount(getTotal() + product.price);
+                                setShowPayment(true);
+
+                                // Release lock after a delay
+                                setTimeout(() => {
+                                    isProcessingScan.current = false;
+                                }, 1000);
+                            }, 300);
+
                         } catch (error) {
-                            toast.error('Produk tidak ditemukan')
+                            console.error("Scan error:", error);
+                            toast.error('Produk tidak ditemukan');
+
+                            // Allow another scan after 2 seconds
+                            setTimeout(() => {
+                                isProcessingScan.current = false;
+                            }, 2000);
                         }
                     },
                     (errorMessage) => {
-                        // ignore
+                        // ignore noise
                     }
                 );
             } catch (err) {
-                console.error("Failed to start scanner:", err);
+                console.error("Scanner error:", err);
                 toast.error("Gagal membuka kamera");
                 setShowScanner(false);
+                isProcessingScan.current = false;
             }
         };
 
@@ -140,13 +164,14 @@ export default function POSPage() {
                     await scannerRef.current.stop();
                     scannerRef.current.clear();
                 } catch (err) {
-                    console.error("Failed to stop scanner:", err);
+                    // console.error("Scanner stop error:", err);
                 }
             }
             scannerRef.current = null;
         };
 
         if (showScanner) {
+            isProcessingScan.current = false; // Reset lock when starting
             startScanner();
         } else {
             stopScanner();
